@@ -1,0 +1,73 @@
+trigger:
+- master
+
+pool:
+  name : 'SR'
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+
+stages:
+  -  stage: Bulidcode
+     displayName: Bulidcode
+
+     jobs:
+       -  job: 
+          steps:
+           - task: VSBuild@1
+             inputs:
+              solution: '$(solution)'
+              msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
+              platform: '$(buildPlatform)'
+              configuration: '$(buildConfiguration)'
+           - task: PublishBuildArtifacts@1
+             inputs:
+               PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+               ArtifactName: 'drop'
+               publishLocation: 'Container'
+               
+  - stage: DEV
+    pool: 
+       name: SR
+    jobs: 
+      -  job: webapp
+         displayName: Dev-webapp
+         steps:
+         - task: DownloadBuildArtifacts@1
+           inputs:
+             buildType: 'current'
+             downloadType: 'single'
+             artifactName: 'drop'
+             downloadPath: '$(System.ArtifactsDirectory)'
+             
+         - task: AzureRmWebAppDeployment@4
+           inputs:
+            ConnectionType: 'AzureRM'
+            azureSubscription: 'Free Trial (24aa38f7-032f-4aea-bad3-f5adab7581e6)'
+            appType: 'webApp'
+            WebAppName: 'dotnetdiv'
+            packageForLinux: '$(System.ArtifactsDirectory)/**/*.zip'
+
+  - stage: PROD
+    pool: 
+       name: SR
+    jobs: 
+      -  job: webapp
+         displayName: Prod-webapp
+         steps:
+         - task: DownloadBuildArtifacts@1
+           inputs:
+             buildType: 'current'
+             downloadType: 'single'
+             artifactName: 'drop'
+             downloadPath: '$(System.ArtifactsDirectory)'
+             
+         - task: AzureRmWebAppDeployment@4
+           inputs:
+            ConnectionType: 'AzureRM'
+            azureSubscription: 'Free Trial (24aa38f7-032f-4aea-bad3-f5adab7581e6)'
+            appType: 'webApp'
+            WebAppName: 'dotnetdiv'
+            packageForLinux: '$(System.ArtifactsDirectory)/**/*.zip'
